@@ -1,5 +1,12 @@
 import { Client, Room } from 'colyseus.js'
-import { IComputer, IOfficeState, IPlayer, IWhiteboard } from '../../../types/IOfficeState'
+import {
+  IComputer,
+  IOfficeState,
+  IPlayer,
+  IWhiteboard,
+  IPortal,
+  IPortalSession,
+} from '../../../types/IOfficeState'
 import { Message } from '../../../types/Messages'
 import { IRoomData, RoomType } from '../../../types/Rooms'
 import { ItemType } from '../../../types/Items'
@@ -20,11 +27,13 @@ import {
   pushPlayerLeftMessage,
 } from '../stores/ChatStore'
 import { setWhiteboardUrls } from '../stores/WhiteboardStore'
+import { setPortalType, setSessions, PortalSessionInfo } from '../stores/PortalStore'
 
 export default class Network {
   private client: Client
   private room?: Room<IOfficeState>
   private lobby!: Room
+  private portalRefs = new Map<string, IPortal>()
   webRTC?: WebRTC
 
   mySessionId!: string
@@ -155,6 +164,33 @@ export default class Network {
       }
     }
 
+    // new instance added to the portals MapSchema
+    this.room.state.portals.onAdd = (portal: IPortal, key: string) => {
+      this.portalRefs.set(key, portal)
+      store.dispatch(setPortalType({ portalId: key, portalType: portal.portalType }))
+
+      portal.connectedUser.onAdd = (item, index) => {
+        phaserEvents.emit(Event.ITEM_USER_ADDED, item, key, ItemType.PORTAL)
+      }
+      portal.connectedUser.onRemove = (item, index) => {
+        phaserEvents.emit(Event.ITEM_USER_REMOVED, item, key, ItemType.PORTAL)
+      }
+
+      const syncSessions = () => {
+        // only push to Redux if this portal's dialog is currently open
+        const portalState = store.getState().portal
+        if (portalState.portalId !== key) return
+        this.pushSessionsToStore(portal)
+      }
+
+      portal.sessions.onAdd = (session: IPortalSession) => {
+        syncSessions()
+        session.connectedUser.onAdd = () => syncSessions()
+        session.connectedUser.onRemove = () => syncSessions()
+      }
+      portal.sessions.onRemove = () => syncSessions()
+    }
+
     // new instance added to the chatMessages ArraySchema
     this.room.state.chatMessages.onAdd = (item, index) => {
       store.dispatch(pushChatMessage(item))
@@ -206,6 +242,17 @@ export default class Network {
   // method to register event listener and call back function when a player joined
   onPlayerJoined(callback: (Player: IPlayer, key: string) => void, context?: any) {
     phaserEvents.on(Event.PLAYER_JOINED, callback, context)
+  }
+
+  // emit PLAYER_JOINED for all existing players (call after registering onPlayerJoined)
+  syncExistingPlayers() {
+    if (!this.room) return
+    this.room.state.players.forEach((player: IPlayer, key: string) => {
+      if (key === this.mySessionId) return
+      if (player.name && player.name !== '') {
+        phaserEvents.emit(Event.PLAYER_JOINED, player, key)
+      }
+    })
   }
 
   // method to register event listener and call back function when a player left
@@ -281,5 +328,44 @@ export default class Network {
 
   addChatMessage(content: string) {
     this.room?.send(Message.ADD_CHAT_MESSAGE, { content: content })
+  }
+
+  private pushSessionsToStore(portal: IPortal) {
+    const sessions: PortalSessionInfo[] = portal.sessions.map((s: IPortalSession) => ({
+      sessionId: s.sessionId,
+      title: s.title,
+      url: s.url,
+      createdBy: s.createdBy,
+      createdAt: s.createdAt,
+      userCount: s.connectedUser.size,
+    }))
+    store.dispatch(setSessions(sessions))
+  }
+
+  // push current sessions to Redux (called when portal dialog opens)
+  syncPortalSessions(portalId: string) {
+    const portal = this.portalRefs.get(portalId)
+    if (portal) this.pushSessionsToStore(portal)
+  }
+
+  connectToPortal(id: string) {
+    this.room?.send(Message.CONNECT_TO_PORTAL, { portalId: id })
+    this.syncPortalSessions(id)
+  }
+
+  disconnectFromPortal(id: string) {
+    this.room?.send(Message.DISCONNECT_FROM_PORTAL, { portalId: id })
+  }
+
+  createPortalSession(portalId: string, title: string, url: string) {
+    this.room?.send(Message.CREATE_PORTAL_SESSION, { portalId, title, url })
+  }
+
+  joinPortalSession(portalId: string, sessionId: string) {
+    this.room?.send(Message.JOIN_PORTAL_SESSION, { portalId, sessionId })
+  }
+
+  leavePortalSession(portalId: string, sessionId: string) {
+    this.room?.send(Message.LEAVE_PORTAL_SESSION, { portalId, sessionId })
   }
 }

@@ -4229,9 +4229,92 @@
          "visible":true,
          "x":0,
          "y":0
+        },
+        {
+         "draworder":"topdown",
+         "id":15,
+         "name":"Portal",
+         "objects":[
+                {
+                 "gid":5489,
+                 "height":32,
+                 "id":1269,
+                 "name":"Excalidraw Portal",
+                 "properties":[
+                        {
+                         "name":"portalType",
+                         "type":"string",
+                         "value":"excalidraw"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":32,
+                 "x":800,
+                 "y":448
+                },
+                {
+                 "gid":5490,
+                 "height":32,
+                 "id":1270,
+                 "name":"YouTube Portal",
+                 "properties":[
+                        {
+                         "name":"portalType",
+                         "type":"string",
+                         "value":"youtube"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":32,
+                 "x":864,
+                 "y":448
+                },
+                {
+                 "gid":5491,
+                 "height":32,
+                 "id":1271,
+                 "name":"Google Docs Portal",
+                 "properties":[
+                        {
+                         "name":"portalType",
+                         "type":"string",
+                         "value":"google-docs"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":32,
+                 "x":928,
+                 "y":448
+                },
+                {
+                 "gid":5492,
+                 "height":32,
+                 "id":1272,
+                 "name":"Zoom Portal",
+                 "properties":[
+                        {
+                         "name":"portalType",
+                         "type":"string",
+                         "value":"zoom"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":32,
+                 "x":992,
+                 "y":448
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
         }],
- "nextlayerid":15,
- "nextobjectid":1269,
+ "nextlayerid":16,
+ "nextobjectid":1273,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.7.0",
@@ -27381,6 +27464,19 @@
          "tilecount":1,
          "tileheight":72,
          "tilewidth":48
+        },
+        {
+         "columns":4,
+         "firstgid":5489,
+         "image":"..\/items\/portal.png",
+         "imageheight":32,
+         "imagewidth":128,
+         "margin":0,
+         "name":"portal",
+         "spacing":0,
+         "tilecount":4,
+         "tileheight":32,
+         "tilewidth":32
         }],
  "tilewidth":32,
  "type":"map",

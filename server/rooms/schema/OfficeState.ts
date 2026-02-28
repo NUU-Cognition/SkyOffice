@@ -5,6 +5,8 @@ import {
   IComputer,
   IWhiteboard,
   IChatMessage,
+  IPortal,
+  IPortalSession,
 } from '../../../types/IOfficeState'
 
 export class Player extends Schema implements IPlayer {
@@ -31,6 +33,21 @@ export class ChatMessage extends Schema implements IChatMessage {
   @type('string') content = ''
 }
 
+export class PortalSession extends Schema implements IPortalSession {
+  @type('string') sessionId = ''
+  @type('string') title = ''
+  @type('string') url = ''
+  @type('string') createdBy = ''
+  @type('number') createdAt = 0
+  @type({ set: 'string' }) connectedUser = new SetSchema<string>()
+}
+
+export class Portal extends Schema implements IPortal {
+  @type('string') portalType = ''
+  @type([PortalSession]) sessions = new ArraySchema<PortalSession>()
+  @type({ set: 'string' }) connectedUser = new SetSchema<string>()
+}
+
 export class OfficeState extends Schema implements IOfficeState {
   @type({ map: Player })
   players = new MapSchema<Player>()
@@ -43,6 +60,9 @@ export class OfficeState extends Schema implements IOfficeState {
 
   @type([ChatMessage])
   chatMessages = new ArraySchema<ChatMessage>()
+
+  @type({ map: Portal })
+  portals = new MapSchema<Portal>()
 }
 
 export const whiteboardRoomIds = new Set<string>()

@@ -8,6 +8,7 @@ import Chair from '../items/Chair'
 import Computer from '../items/Computer'
 import Whiteboard from '../items/Whiteboard'
 import VendingMachine from '../items/VendingMachine'
+import Portal from '../items/Portal'
 import '../characters/MyPlayer'
 import '../characters/OtherPlayer'
 import MyPlayer from '../characters/MyPlayer'
@@ -34,6 +35,7 @@ export default class Game extends Phaser.Scene {
   private otherPlayerMap = new Map<string, OtherPlayer>()
   computerMap = new Map<string, Computer>()
   private whiteboardMap = new Map<string, Whiteboard>()
+  private portalMap = new Map<string, Portal>()
 
   constructor() {
     super('game')
@@ -128,6 +130,21 @@ export default class Game extends Phaser.Scene {
       this.addObjectFromTiled(vendingMachines, obj, 'vendingmachines', 'vendingmachine')
     })
 
+    // import portal objects from Tiled map to Phaser
+    const portals = this.physics.add.staticGroup({ classType: Portal })
+    const portalLayer = this.map.getObjectLayer('Portal')
+    if (portalLayer) {
+      portalLayer.objects.forEach((obj, i) => {
+        const item = this.addObjectFromTiled(portals, obj, 'portals', 'portal') as Portal
+        const id = `${i}`
+        item.id = id
+        // read portalType custom property from Tiled object
+        const portalTypeProp = obj.properties?.find((p: any) => p.name === 'portalType')
+        if (portalTypeProp) item.portalType = portalTypeProp.value
+        this.portalMap.set(id, item)
+      })
+    }
+
     // import other objects from Tiled map to Phaser
     this.addGroupFromTiled('Wall', 'tiles_wall', 'FloorAndGround', false)
     this.addGroupFromTiled('Objects', 'office', 'Modern_Office_Black_Shadow', false)
@@ -146,7 +163,7 @@ export default class Game extends Phaser.Scene {
 
     this.physics.add.overlap(
       this.playerSelector,
-      [chairs, computers, whiteboards, vendingMachines],
+      [chairs, computers, whiteboards, vendingMachines, portals],
       this.handleItemSelectorOverlap,
       undefined,
       this
@@ -169,6 +186,9 @@ export default class Game extends Phaser.Scene {
     this.network.onItemUserAdded(this.handleItemUserAdded, this)
     this.network.onItemUserRemoved(this.handleItemUserRemoved, this)
     this.network.onChatMessageAdded(this.handleChatMessageAdded, this)
+
+    // replay existing players that joined before Game scene was ready
+    this.network.syncExistingPlayers()
   }
 
   private handleItemSelectorOverlap(playerSelector, selectionItem) {
@@ -263,6 +283,9 @@ export default class Game extends Phaser.Scene {
     } else if (itemType === ItemType.WHITEBOARD) {
       const whiteboard = this.whiteboardMap.get(itemId)
       whiteboard?.addCurrentUser(playerId)
+    } else if (itemType === ItemType.PORTAL) {
+      const portal = this.portalMap.get(itemId)
+      portal?.addCurrentUser(playerId)
     }
   }
 
@@ -273,6 +296,9 @@ export default class Game extends Phaser.Scene {
     } else if (itemType === ItemType.WHITEBOARD) {
       const whiteboard = this.whiteboardMap.get(itemId)
       whiteboard?.removeCurrentUser(playerId)
+    } else if (itemType === ItemType.PORTAL) {
+      const portal = this.portalMap.get(itemId)
+      portal?.removeCurrentUser(playerId)
     }
   }
 

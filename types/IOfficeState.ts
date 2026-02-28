@@ -24,9 +24,25 @@ export interface IChatMessage extends Schema {
   content: string
 }
 
+export interface IPortalSession extends Schema {
+  sessionId: string
+  title: string
+  url: string
+  createdBy: string
+  createdAt: number
+  connectedUser: SetSchema<string>
+}
+
+export interface IPortal extends Schema {
+  portalType: string
+  sessions: ArraySchema<IPortalSession>
+  connectedUser: SetSchema<string>
+}
+
 export interface IOfficeState extends Schema {
   players: MapSchema<IPlayer>
   computers: MapSchema<IComputer>
   whiteboards: MapSchema<IWhiteboard>
   chatMessages: ArraySchema<IChatMessage>
+  portals: MapSchema<IPortal>
 }

@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt'
 import { Room, Client, ServerError } from 'colyseus'
 import { Dispatcher } from '@colyseus/command'
-import { Player, OfficeState, Computer, Whiteboard } from './schema/OfficeState'
+import { Player, OfficeState, Computer, Whiteboard, Portal } from './schema/OfficeState'
 import { Message } from '../../types/Messages'
 import { IRoomData } from '../../types/Rooms'
 import { whiteboardRoomIds } from './schema/OfficeState'
@@ -16,6 +16,13 @@ import {
   WhiteboardRemoveUserCommand,
 } from './commands/WhiteboardUpdateArrayCommand'
 import ChatMessageUpdateCommand from './commands/ChatMessageUpdateCommand'
+import {
+  PortalAddUserCommand,
+  PortalRemoveUserCommand,
+  CreatePortalSessionCommand,
+  JoinPortalSessionCommand,
+  LeavePortalSessionCommand,
+} from './commands/PortalCommands'
 
 export class SkyOffice extends Room<OfficeState> {
   private dispatcher = new Dispatcher(this)
@@ -48,6 +55,14 @@ export class SkyOffice extends Room<OfficeState> {
     for (let i = 0; i < 3; i++) {
       this.state.whiteboards.set(String(i), new Whiteboard())
     }
+
+    // Add 4 portals (one per type)
+    const portalTypes = ['excalidraw', 'youtube', 'google-docs', 'zoom']
+    portalTypes.forEach((type, i) => {
+      const portal = new Portal()
+      portal.portalType = type
+      this.state.portals.set(String(i), portal)
+    })
 
     // when a player connect to a computer, add to the computer connectedUser array
     this.onMessage(Message.CONNECT_TO_COMPUTER, (client, message: { computerId: string }) => {
@@ -92,6 +107,59 @@ export class SkyOffice extends Room<OfficeState> {
         this.dispatcher.dispatch(new WhiteboardRemoveUserCommand(), {
           client,
           whiteboardId: message.whiteboardId,
+        })
+      }
+    )
+
+    // when a player opens a portal lobby
+    this.onMessage(Message.CONNECT_TO_PORTAL, (client, message: { portalId: string }) => {
+      this.dispatcher.dispatch(new PortalAddUserCommand(), {
+        client,
+        portalId: message.portalId,
+      })
+    })
+
+    // when a player closes a portal lobby
+    this.onMessage(Message.DISCONNECT_FROM_PORTAL, (client, message: { portalId: string }) => {
+      this.dispatcher.dispatch(new PortalRemoveUserCommand(), {
+        client,
+        portalId: message.portalId,
+      })
+    })
+
+    // when a player creates a new portal session
+    this.onMessage(
+      Message.CREATE_PORTAL_SESSION,
+      (client, message: { portalId: string; title: string; url: string }) => {
+        this.dispatcher.dispatch(new CreatePortalSessionCommand(), {
+          client,
+          portalId: message.portalId,
+          title: message.title,
+          url: message.url,
+        })
+      }
+    )
+
+    // when a player joins an existing portal session
+    this.onMessage(
+      Message.JOIN_PORTAL_SESSION,
+      (client, message: { portalId: string; sessionId: string }) => {
+        this.dispatcher.dispatch(new JoinPortalSessionCommand(), {
+          client,
+          portalId: message.portalId,
+          sessionId: message.sessionId,
+        })
+      }
+    )
+
+    // when a player leaves a portal session
+    this.onMessage(
+      Message.LEAVE_PORTAL_SESSION,
+      (client, message: { portalId: string; sessionId: string }) => {
+        this.dispatcher.dispatch(new LeavePortalSessionCommand(), {
+          client,
+          portalId: message.portalId,
+          sessionId: message.sessionId,
         })
       }
     )
@@ -187,6 +255,12 @@ export class SkyOffice extends Room<OfficeState> {
       if (whiteboard.connectedUser.has(client.sessionId)) {
         whiteboard.connectedUser.delete(client.sessionId)
       }
+    })
+    this.state.portals.forEach((portal) => {
+      portal.connectedUser.delete(client.sessionId)
+      portal.sessions.forEach((session) => {
+        session.connectedUser.delete(client.sessionId)
+      })
     })
   }
 
